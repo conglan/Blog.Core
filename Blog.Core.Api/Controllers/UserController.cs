@@ -29,6 +29,7 @@ namespace Blog.Core.Controllers
         readonly ISysUserInfoServices _sysUserInfoServices;
         readonly IUserRoleServices _userRoleServices;
         readonly IRoleServices _roleServices;
+        private readonly IDepartmentServices _departmentServices;
         private readonly IUser _user;
         private readonly IMapper _mapper;
         private readonly ILogger<UserController> _logger;
@@ -44,13 +45,16 @@ namespace Blog.Core.Controllers
         /// <param name="mapper"></param>
         /// <param name="logger"></param>
         public UserController(IUnitOfWork unitOfWork, ISysUserInfoServices sysUserInfoServices,
-            IUserRoleServices userRoleServices, IRoleServices roleServices,
+            IUserRoleServices userRoleServices,
+            IRoleServices roleServices,
+            IDepartmentServices departmentServices,
             IUser user, IMapper mapper, ILogger<UserController> logger)
         {
             _unitOfWork = unitOfWork;
             _sysUserInfoServices = sysUserInfoServices;
             _userRoleServices = userRoleServices;
             _roleServices = roleServices;
+            _departmentServices = departmentServices;
             _user = user;
             _mapper = mapper;
             _logger = logger;
@@ -81,6 +85,7 @@ namespace Blog.Core.Controllers
             // 这里可以封装到多表查询，此处简单处理
             var allUserRoles = await _userRoleServices.Query(d => d.IsDeleted == false);
             var allRoles = await _roleServices.Query(d => d.IsDeleted == false);
+            var allDepartments = await _departmentServices.Query(d => d.IsDeleted == false);
 
             var sysUserInfos = data.data;
             foreach (var item in sysUserInfos)
@@ -88,6 +93,9 @@ namespace Blog.Core.Controllers
                 var currentUserRoles = allUserRoles.Where(d => d.UserId == item.Id).Select(d => d.RoleId).ToList();
                 item.RIDs = currentUserRoles;
                 item.RoleNames = allRoles.Where(d => currentUserRoles.Contains(d.Id)).Select(d => d.Name).ToList();
+                var departmentNameAndIds = GetFullDepartmentName(allDepartments, item.DepartmentId);
+                item.DepartmentName = departmentNameAndIds.Item1;
+                item.Dids = departmentNameAndIds.Item2;
             }
 
             data.data = sysUserInfos;
@@ -96,6 +104,22 @@ namespace Blog.Core.Controllers
 
             return Success(data.ConvertTo<SysUserInfoDto>(_mapper));
 
+        }
+
+        private (string, List<int>) GetFullDepartmentName(List<Department> departments, int departmentId)
+        {
+            var departmentModel = departments.FirstOrDefault(d => d.Id == departmentId);
+            if (departmentModel == null)
+            {
+                return ("", new List<int>());
+            }
+
+            var pids = departmentModel.CodeRelationship?.TrimEnd(',').Split(',').Select(d => d.ObjToInt()).ToList();
+            pids.Add(departmentModel.Id);
+            var pnams = departments.Where(d => pids.Contains(d.Id)).ToList().Select(d => d.Name).ToArray();
+            var fullName = string.Join("/", pnams);
+
+            return (fullName, pids);
         }
 
         // GET: api/User/5
@@ -127,7 +151,7 @@ namespace Blog.Core.Controllers
                     var userinfo = await _sysUserInfoServices.QueryById(tokenModel.Uid);
                     if (userinfo != null)
                     {
-                        data.response = _mapper.Map<SysUserInfoDto>(userinfo); 
+                        data.response = _mapper.Map<SysUserInfoDto>(userinfo);
                         data.success = true;
                         data.msg = "获取成功";
                     }
@@ -180,16 +204,20 @@ namespace Blog.Core.Controllers
 
                 if (sysUserInfo != null && sysUserInfo.uID > 0)
                 {
+                    // 无论 Update Or Add , 先删除当前用户的全部 U_R 关系
+                    var usreroles = (await _userRoleServices.Query(d => d.UserId == sysUserInfo.uID)).Select(d => d.Id.ToString()).ToArray();
+                    if (usreroles.Any())
+                    {
+                        var isAllDeleted = await _userRoleServices.DeleteByIds(usreroles);
+                        if (!isAllDeleted)
+                        {
+                            return Failed("服务器更新异常");
+                        }
+                    }
+
+                    // 然后再执行添加操作
                     if (sysUserInfo.RIDs.Count > 0)
                     {
-                        // 无论 Update Or Add , 先删除当前用户的全部 U_R 关系
-                        var usreroles = (await _userRoleServices.Query(d => d.UserId == sysUserInfo.uID)).Select(d => d.Id.ToString()).ToArray();
-                        if (usreroles.Count() > 0)
-                        {
-                            var isAllDeleted = await _userRoleServices.DeleteByIds(usreroles);
-                        }
-
-                        // 然后再执行添加操作
                         var userRolsAdd = new List<UserRole>();
                         sysUserInfo.RIDs.ForEach(rid =>
                        {
