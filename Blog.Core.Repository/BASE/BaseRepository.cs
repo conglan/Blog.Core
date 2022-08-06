@@ -67,7 +67,7 @@ namespace Blog.Core.Repository.Base
         public async Task<TEntity> QueryById(object objId, bool blnUseCache = false)
         {
             //return await Task.Run(() => _db.Queryable<TEntity>().WithCacheIF(blnUseCache).InSingle(objId));
-            return await _db.Queryable<TEntity>().WithCacheIF(blnUseCache).In(objId).SingleAsync();
+            return await _db.Queryable<TEntity>().WithCacheIF(blnUseCache, 10).In(objId).SingleAsync();
         }
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace Blog.Core.Repository.Base
         /// <returns></returns>
         public async Task<bool> DeleteById(object id)
         {
-            return await _db.Deleteable<TEntity>(id).ExecuteCommandHasChangeAsync();
+            return await _db.Deleteable<TEntity>().In(id).ExecuteCommandHasChangeAsync();
         }
 
         /// <summary>

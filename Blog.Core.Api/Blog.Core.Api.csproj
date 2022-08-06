@@ -6,7 +6,7 @@
 
     <TargetFramework>net6.0</TargetFramework>
 	<ImplicitUsings>enable</ImplicitUsings>
-    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
+    <!--<AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>-->
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
   </PropertyGroup>
@@ -89,6 +89,10 @@
     <None Update="StopContainerImg.sh">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\BlogCore.Data.excel\" />
   </ItemGroup>
 
   <ProjectExtensions>

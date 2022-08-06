@@ -14,13 +14,8 @@ using Blog.Core.Model.Models;
 using Blog.Core.Model.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 
 namespace Blog.Core.Controllers
 {
@@ -104,6 +99,19 @@ namespace Blog.Core.Controllers
                     }
                 ).ToList()
             };
+        }
+
+        /// <summary>
+        /// 测试SqlSugar二级缓存
+        /// 可设置过期时间
+        /// 或通过接口方式更新该数据，也会离开清除缓存
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<BlogArticle> TestSqlsugarWithCache()
+        {
+            return await _blogArticleServices.QueryById("1", true);
         }
 
         /// <summary>
@@ -425,12 +433,12 @@ namespace Blog.Core.Controllers
         public async Task<string> HttpPollyGet()
         {
             return await _httpPollyHelper.GetAsync(HttpEnum.LocalHost, "/api/ElasticDemo/GetDetailInfo?esid=3130&esindex=chinacodex");
-        } 
+        }
         #endregion
 
         [HttpPost]
         [AllowAnonymous]
-        public string TestEnum(EnumDemoDto dto)=>dto.Type.ToString();
+        public string TestEnum(EnumDemoDto dto) => dto.Type.ToString();
     }
     public class ClaimDto
     {
